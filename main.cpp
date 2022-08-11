@@ -1,7 +1,8 @@
-#include <Nirvana/Nirvana.h>
-#include <coffi/coffi.hpp>
-#include <Nirvana/OLF.h>
+#include <Nirvana/basic_string.h>
+#include <Nirvana/vector.h>
 #include <Nirvana/OLF_Iterator.h>
+#include <Nirvana/OLF.h>
+#include <coffi/coffi.hpp>
 #include <stdint.h>
 #include <iostream>
 #include <vector>
