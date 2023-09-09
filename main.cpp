@@ -93,11 +93,11 @@ public:
     for (const auto& imp : imports_) {
       std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
     }
-    std::cout << "EXPORTS: " << imports_.size () << std::endl;
+    std::cout << "EXPORTS: " << exports_.size () << std::endl;
     for (const auto& imp : exports_) {
       std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
     }
-    std::cout << "OBJECTS: " << imports_.size () << std::endl;
+    std::cout << "OBJECTS: " << exp_objects_.size () << std::endl;
     for (auto p : exp_objects_) {
       std::cout << '\t' << p << std::endl;
     }
