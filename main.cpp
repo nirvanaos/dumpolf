@@ -54,10 +54,14 @@ public:
       throw std::runtime_error ("Not a Nirvana module");
     for (OLF_Iterator it (olf->get_data (), olf->get_data_size ()); !it.end (); it.next ()) {
       switch (*it.cur ()) {
-        case OLF_IMPORT_INTERFACE:
-        case OLF_IMPORT_OBJECT: {
+        case OLF_IMPORT_INTERFACE: {
           auto p = reinterpret_cast <const ImportInterface*> (it.cur ());
           imports_.push_back ({ get_string (p->name), get_string (p->interface_id) });
+        } break;
+
+        case OLF_IMPORT_OBJECT: {
+          auto p = reinterpret_cast <const ImportInterface*> (it.cur ());
+          imp_objects_.push_back ({ get_string (p->name), get_string (p->interface_id) });
         } break;
 
         case OLF_EXPORT_INTERFACE: {
@@ -89,15 +93,19 @@ public:
       std::cout << "Startup interface: " << startup_.interface_id << std::endl;
     } else
       std::cout << "No startup interface.\n";
-    std::cout << "IMPORTS: " << imports_.size () << std::endl;
+    std::cout << "IMPORT INTERFACES: " << imports_.size () << std::endl;
     for (const auto& imp : imports_) {
       std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
     }
-    std::cout << "EXPORTS: " << exports_.size () << std::endl;
+    std::cout << "EXPORT INTERFACES: " << exports_.size () << std::endl;
     for (const auto& imp : exports_) {
       std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
     }
-    std::cout << "OBJECTS: " << exp_objects_.size () << std::endl;
+    std::cout << "IMPORT OBJECTS: " << imp_objects_.size () << std::endl;
+    for (const auto& imp : imp_objects_) {
+      std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
+    }
+    std::cout << "EXPORT OBJECTS: " << exp_objects_.size () << std::endl;
     for (auto p : exp_objects_) {
       std::cout << '\t' << p << std::endl;
     }
@@ -122,6 +130,7 @@ private:
   Startup startup_;
   std::vector <ImpEx> imports_;
   std::vector <ImpEx> exports_;
+  std::vector <ImpEx> imp_objects_;
   std::vector <const char*> exp_objects_;
 };
 
