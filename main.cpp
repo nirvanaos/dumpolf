@@ -10,11 +10,10 @@ using namespace COFFI;
 using namespace Nirvana;
 using namespace CORBA;
 using namespace CORBA::Internal;
-using namespace std;
 
 class ModuleInfo
 {
-  struct Import
+  struct ImpEx
   {
     const char* name;
     const char* interface_id;
@@ -35,12 +34,12 @@ public:
   ModuleInfo (const char* file_name) :
     image_base_ (0)
   {
-    ifstream file;
+    std::ifstream file;
     file.open (file_name, std::ios::in | std::ios::binary);
     if (!file)
-      throw runtime_error ("File not found");
+      throw std::runtime_error ("File not found");
     if (!reader_.load (file))
-      throw runtime_error ("Can't process COFF file");
+      throw std::runtime_error ("Can't process COFF file");
     const auto wh = reader_.get_win_header ();
     image_base_ = (uintptr_t)wh->get_image_base ();
     const sections& svec = reader_.get_sections ();
@@ -52,17 +51,30 @@ public:
       }
     }
     if (!olf)
-      throw runtime_error ("Not a Nirvana module");
+      throw std::runtime_error ("Not a Nirvana module");
     for (OLF_Iterator it (olf->get_data (), olf->get_data_size ()); !it.end (); it.next ()) {
       switch (*it.cur ()) {
-        case OLF_IMPORT_INTERFACE: {
+        case OLF_IMPORT_INTERFACE:
+        case OLF_IMPORT_OBJECT: {
           auto p = reinterpret_cast <const ImportInterface*> (it.cur ());
           imports_.push_back ({ get_string (p->name), get_string (p->interface_id) });
         } break;
 
+        case OLF_EXPORT_INTERFACE: {
+          auto p = reinterpret_cast <const ExportInterface*> (it.cur ());
+          Interface::EPV** itf = (Interface::EPV**)translate_addr (p->itf);
+          Interface::EPV* epv = (Interface::EPV*)translate_addr (*itf);
+          exports_.push_back ({ get_string (p->name), get_string (epv->interface_id) });
+        } break;
+
+        case OLF_EXPORT_OBJECT: {
+          auto p = reinterpret_cast <const ExportObject*> (it.cur ());
+          exp_objects_.push_back (get_string (p->name));
+        } break;
+
         case OLF_MODULE_STARTUP: {
           if (startup_.interface_id)
-            throw runtime_error ("Duplicated OLF_MODULE_STARTUP");
+            throw std::runtime_error ("Duplicated OLF_MODULE_STARTUP");
           auto p = reinterpret_cast <const Nirvana::ModuleStartup*> (it.cur ());
           startup_.interface_id = get_string (get_EPV (p->startup)->interface_id);
           startup_.flags = p->flags;
@@ -74,12 +86,20 @@ public:
   void print ()
   {
     if (startup_.interface_id) {
-      cout << "Startup interface: " << startup_.interface_id << endl;
+      std::cout << "Startup interface: " << startup_.interface_id << std::endl;
     } else
-      cout << "No startup interface.\n";
-    cout << "IMPORTS: " << imports_.size () << endl;
+      std::cout << "No startup interface.\n";
+    std::cout << "IMPORTS: " << imports_.size () << std::endl;
     for (const auto& imp : imports_) {
-      cout << '\t' << imp.name << '\t' << imp.interface_id << endl;
+      std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
+    }
+    std::cout << "EXPORTS: " << imports_.size () << std::endl;
+    for (const auto& imp : exports_) {
+      std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
+    }
+    std::cout << "OBJECTS: " << imports_.size () << std::endl;
+    for (auto p : exp_objects_) {
+      std::cout << '\t' << p << std::endl;
     }
   }
 
@@ -100,7 +120,9 @@ private:
   coffi reader_;
   uintptr_t image_base_;
   Startup startup_;
-  vector <Import> imports_;
+  std::vector <ImpEx> imports_;
+  std::vector <ImpEx> exports_;
+  std::vector <const char*> exp_objects_;
 };
 
 const void* ModuleInfo::translate_addr (const void* p) const
@@ -118,21 +140,21 @@ const void* ModuleInfo::translate_addr (const void* p) const
     }
   }
   if (!section)
-    throw logic_error ("Can not translate address");
+    throw std::logic_error ("Can not translate address");
   return section->get_data () + (va - section->get_virtual_address ());
 }
 
 int main (int argc, char* argv [])
 {
   if (argc != 2) {
-    cout << "dumpolf <module file name>\n";
+    std::cout << "dumpolf <module file name>\n";
     return 0;
   }
   try {
     ModuleInfo info (argv [1]);
     info.print ();
-  } catch (const exception& ex) {
-    cerr << ex.what () << endl;
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what () << std::endl;
     return -1;
   }
   return 0;
