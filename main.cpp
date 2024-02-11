@@ -17,6 +17,11 @@ class ModuleInfo
   {
     const char* name;
     const char* interface_id;
+
+    bool operator < (const ImpEx& rhs) const
+    {
+      return std::strcmp (name, rhs.name) < 0;
+    }
   };
 
   struct Startup
@@ -93,6 +98,12 @@ public:
       std::cout << "Startup interface: " << startup_.interface_id << std::endl;
     } else
       std::cout << "No startup interface.\n";
+
+    sort (imports_);
+    sort (exports_);
+    sort (imp_objects_);
+    sort (exp_objects_);
+
     std::cout << "IMPORT INTERFACES: " << imports_.size () << std::endl;
     for (const auto& imp : imports_) {
       std::cout << '\t' << imp.name << '\t' << imp.interface_id << std::endl;
@@ -124,6 +135,10 @@ private:
     return reinterpret_cast <const Interface::EPV*> (
       translate_addr (*reinterpret_cast <const void* const*> (translate_addr (itf))));
   }
+
+  static void sort (std::vector <ImpEx>& v);
+  static void sort (std::vector <const char*>& v);
+
 private:
   coffi reader_;
   uintptr_t image_base_;
@@ -151,6 +166,16 @@ const void* ModuleInfo::translate_addr (const void* p) const
   if (!section)
     throw std::logic_error ("Can not translate address");
   return section->get_data () + (va - section->get_virtual_address ());
+}
+
+void ModuleInfo::sort (std::vector <ImpEx>& v)
+{
+  std::sort (v.begin (), v.end ());
+}
+
+void ModuleInfo::sort (std::vector <const char*>& v)
+{
+  std::sort (v.begin (), v.end (), [](const char* a, const char* b) {return strcmp (a, b) < 0; });
 }
 
 int main (int argc, char* argv [])
