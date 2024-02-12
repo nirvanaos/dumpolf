@@ -94,9 +94,9 @@ public:
 
   void print ()
   {
-    if (startup_.interface_id) {
+    if (startup_.interface_id)
       std::cout << "Startup interface: " << startup_.interface_id << std::endl;
-    } else
+    else
       std::cout << "No startup interface.\n";
 
     sort (imports_);
