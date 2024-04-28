@@ -28,7 +28,7 @@ class ModuleInfo
   struct Startup
   {
     const char* interface_id;
-    uintptr_t flags;
+    unsigned flags;
 
     Startup () :
       interface_id (nullptr),
@@ -56,7 +56,7 @@ public:
     }
 
     const auto wh = reader_.get_win_header ();
-    image_base_ = (uintptr_t)wh->get_image_base ();
+    image_base_ = wh->get_image_base ();
     const sections& svec = reader_.get_sections ();
     const section* olf = nullptr;
     for (const section* psec : svec) {
@@ -104,7 +104,7 @@ public:
           throw std::runtime_error ("Duplicated OLF_MODULE_STARTUP");
         auto p = reinterpret_cast <const Nirvana::ModuleStartupW <Word>*> (it.cur ());
         startup_.interface_id = get_string (get_EPV <Word> (p->startup)->interface_id);
-        startup_.flags = p->flags;
+        startup_.flags = (unsigned)(p->flags);
       } break;
       }
     }
@@ -159,9 +159,9 @@ public:
   }
 
 private:
-  const void* translate_addr (uintptr_t p) const;
+  const void* translate_addr (uint64_t p) const;
 
-  const char* get_string (uintptr_t p)
+  const char* get_string (uint64_t p)
   {
     return reinterpret_cast <const char*> (translate_addr (p));
   }
@@ -172,7 +172,7 @@ private:
   };
 
   template <typename Word>
-  const InterfaceEPV <Word>* get_EPV (uintptr_t itf)
+  const InterfaceEPV <Word>* get_EPV (uint64_t itf)
   {
     return reinterpret_cast <const InterfaceEPV <Word>*> (
       translate_addr (*reinterpret_cast <const Word*> (translate_addr (itf))));
@@ -183,7 +183,7 @@ private:
 
 private:
   coffi reader_;
-  uintptr_t image_base_;
+  uint64_t image_base_;
   uint16_t machine_;
   uint16_t bits_;
   Startup startup_;
@@ -193,9 +193,9 @@ private:
   std::vector <const char*> exp_objects_;
 };
 
-const void* ModuleInfo::translate_addr (uintptr_t p) const
+const void* ModuleInfo::translate_addr (uint64_t p) const
 {
-  uintptr_t va = p - image_base_;
+  uint32_t va = (uint32_t)(p - image_base_);
   const section* section = nullptr;
   for (const auto psec : reader_.get_sections ()) {
     uint32_t begin = psec->get_virtual_address ();
