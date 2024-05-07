@@ -46,6 +46,14 @@ bool ModuleMetadata::check () noexcept
 				case OLF_EXPORT_LOCAL:
 					set_error ("Executable can not export objects");
 					return false;
+					break;
+
+				case OLF_IMPORT_INTERFACE:
+					if (CORBA::Internal::RepId::compatible (entry.interface_id, CORBA::Internal::RepIdOf <CORBA::Internal::ObjectFactory>::id)) {
+						set_error ("Process can not import ObjectFactory interface");
+						return false;
+					}
+					break;
 				}
 			}
 			break;
@@ -169,21 +177,29 @@ void ModuleMetadata::print (std::ostream& out)
 
 	out << "Type: " << mod_type << std::endl;
 
-	out << "IMPORTS: " << imports.size () << std::endl;
-	for (const auto& rec : imports) {
-		out << '\t' << rec.name << '\t' << rec.interface_id << std::endl;
+	if (!imports.empty ()) {
+		out << "IMPORTS: " << imports.size () << std::endl;
+		for (const auto& rec : imports) {
+			out << '\t' << rec.name << '\t' << rec.interface_id << std::endl;
+		}
 	}
-	out << "EXPORT INTERFACES: " << exp_interfaces.size () << std::endl;
-	for (const auto& rec : exp_interfaces) {
-		out << '\t' << rec.name << '\t' << rec.interface_id << std::endl;
+	if (!exp_interfaces.empty ()) {
+		out << "EXPORT INTERFACES: " << exp_interfaces.size () << std::endl;
+		for (const auto& rec : exp_interfaces) {
+			out << '\t' << rec.name << '\t' << rec.interface_id << std::endl;
+		}
 	}
-	out << "EXPORT OBJECTS: " << exp_objects.size () << std::endl;
-	for (const auto& rec : exp_objects) {
-		out << '\t' << rec << std::endl;
+	if (!exp_objects.empty ()) {
+		out << "EXPORT OBJECTS: " << exp_objects.size () << std::endl;
+		for (const auto& rec : exp_objects) {
+			out << '\t' << rec << std::endl;
+		}
 	}
-	out << "EXPORT LOCAL OBJECTS: " << exp_local.size () << std::endl;
-	for (const auto& rec : exp_local) {
-		out << '\t' << rec << std::endl;
+	if (!exp_local.empty ()) {
+		out << "EXPORT LOCAL OBJECTS: " << exp_local.size () << std::endl;
+		for (const auto& rec : exp_local) {
+			out << '\t' << rec << std::endl;
+		}
 	}
 }
 
