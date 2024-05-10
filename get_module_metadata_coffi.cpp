@@ -1,41 +1,39 @@
 #include "ModuleMetadata.h"
 #include <Nirvana/OLF_Iterator.h>
 #include <Nirvana/platform.h>
-#include <pe_lib/pe_bliss.h>
+#include <coffi/coffi.hpp>
 #include <iostream>
 #include <stdexcept>
 
 using namespace Nirvana;
-using namespace pe_bliss;
 
-class ModuleReader
+class ModuleReader : public COFFI::coffi
 {
 public:
-	ModuleReader (std::istream& file) :
-		image_ (pe_factory::create_pe (file))
-	{}
-
 	Nirvana::ModuleMetadata get_module_metadata () const
 	{
 		Nirvana::ModuleMetadata md;
-		md.platform = image_.get_machine ();
-		const section* olf = nullptr;
-		const section_list& sections = image_.get_image_sections ();
-		for (const section& sec : sections) {
-			if (sec.get_name () == OLF_BIND) {
-				olf = &sec;
+		md.platform = get_header ()->get_machine ();
+		unsigned bits = 32;
+		switch (md.platform) {
+		case PLATFORM_X64:
+		case PLATFORM_ARM64:
+			bits = 64;
+			break;
+		}
+		const COFFI::section* olf = nullptr;
+		for (const COFFI::section* psec : get_sections ()) {
+			if (psec->get_name () == OLF_BIND) {
+				olf = psec;
 				break;
 			}
 		}
 
-		uint32_t entry_point = image_.get_ep ();
-		if (entry_point)
-			md.set_error ("Image must be linked with /NOENTRY");
-		else if (!olf)
+		if (!olf)
 			md.set_error ("Metadata not found");
 		else {
 			bool valid;
-			if (image_.get_pe_type () == pe_type_32)
+			if (bits == 32)
 				valid = iterate <uint32_t> (*olf, md);
 			else
 				valid = iterate <uint64_t> (*olf, md);
@@ -49,9 +47,9 @@ public:
 
 private:
 	template <typename Word>
-	bool iterate (const section& olf, ModuleMetadata& md) const
+	bool iterate (const COFFI::section& olf, ModuleMetadata& md) const
 	{
-		for (OLF_Iterator <Word> it (olf.get_raw_data ().data (), olf.get_raw_data ().size ()); !it.end (); it.next ()) {
+		for (OLF_Iterator <Word> it (olf.get_data (), olf.get_data_size ()); !it.end (); it.next ()) {
 			if (!it.valid ())
 				return false;
 
@@ -84,30 +82,11 @@ private:
 		return true;
 	}
 
-	const void* translate_addr (uint64_t va) const
-	{
-		return translate_rva (image_.va_to_rva (va));
-	}
+	const void* translate_addr (uint64_t p) const;
 
-	const void* translate_addr (uint32_t va) const
+	const char* get_string (uint64_t p) const
 	{
-		return translate_rva (image_.va_to_rva (va));
-	}
-
-	const void* translate_rva (uint32_t rva) const
-	{
-		const section& sec = image_.section_from_rva (rva);
-		return sec.get_raw_data ().data () + (rva - sec.get_virtual_address ());
-	}
-
-	const char* get_string (uint32_t va) const
-	{
-		return reinterpret_cast <const char*> (translate_addr (va));
-	}
-
-	const char* get_string (uint64_t va) const
-	{
-		return reinterpret_cast <const char*> (translate_addr (va));
+		return reinterpret_cast <const char*> (translate_addr (p));
 	}
 
 	template <typename Word>
@@ -122,22 +101,39 @@ private:
 			translate_addr (*reinterpret_cast <const Word*> (translate_addr (itf))));
 	}
 
-private:
-	pe_bliss::pe_base image_;
 };
+
+const void* ModuleReader::translate_addr (uint64_t p) const
+{
+	uint32_t va = (uint32_t)(p - get_win_header ()->get_image_base ());
+	const COFFI::section* section = nullptr;
+	for (const auto psec : get_sections ()) {
+		uint32_t begin = psec->get_virtual_address ();
+		if (begin <= va) {
+			uint32_t end = begin + psec->get_virtual_size ();
+			if (end > va) {
+				section = psec;
+				break;
+			}
+		}
+	}
+	if (!section)
+		throw std::logic_error ("Can not translate address");
+	return section->get_data () + (va - section->get_virtual_address ());
+}
 
 namespace Nirvana {
 
 ModuleMetadata get_module_metadata (std::istream& file)
 {
-	ModuleMetadata md;
-	try {
-		ModuleReader reader (file);
-		md = reader.get_module_metadata ();
-	} catch (const std::exception& ex) {
-		md.set_error (ex.what ());
+	ModuleReader reader;
+	if (!reader.load (file)) {
+		ModuleMetadata md;
+		md.set_error ("Can't read COFF file");
+		return md;
 	}
-	return md;
+
+	return reader.get_module_metadata ();
 }
 
 }
