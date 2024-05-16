@@ -1,4 +1,4 @@
-#include "ModuleMetadata.h"
+#include <Nirvana/ModuleMetadata.h>
 #include <iostream>
 #include <fstream>
 
