@@ -14,7 +14,9 @@ int main (int argc, char* argv [])
       std::ifstream file (argv [1], std::ios::in | std::ios::binary);
       if (!file)
         throw std::runtime_error ("File not found");
-      module_metadata = Nirvana::get_module_metadata (file);
+      const char* ext = strrchr (argv [1], '.');
+      bool exe = ext && !strcmp (ext, ".exe");
+      module_metadata = Nirvana::get_module_metadata (file, exe);
     }
     module_metadata.print (std::cout);
   } catch (const std::exception& ex) {
